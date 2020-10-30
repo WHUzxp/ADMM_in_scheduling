@@ -1,0 +1,60 @@
+%%ADMM主程序
+%%串行计算
+clear
+clc
+%%%区域a,节点33,1-7,18-25
+%%耦合为Xa=[U(6),U(7),P(7),Q(7),U(5),U(25),P(25),Q(25)]
+Line_a=[1,2,3,4,5,6,7,18,19,20,21,22,23,24,25];
+Node_a=[33,1,2,3,4,5,6,18,19,20,21,22,23,24,25];
+%%%区域b,节点6-17
+%%耦合为Xb=[U(6),U(7),P(7),Q(7)]
+Line_b=[7,8,9,10,11,12,13,14,15,16,17];
+Node_b=[6,7,8,9,10,11,12,13,14,15,16,17];
+%%%区域c,节点5,25-32
+%%耦合为Xb=[U(5),U(25),P(25),Q(25)]
+Line_c=[25,26,27,28,29,30,31,32];
+Node_c=[5,25,26,27,28,29,30,31,32];
+%%%%首轮求解
+Ploss_data=zeros(32,1);
+Volta_data=zeros(33,1);
+Qg_data=zeros(33,1);
+xigma=0;gama=0;lagrant_a=[0;0;0;0;0;0;0;0];lagrant_b=[0;0;0;0];lagrant_c=[0;0;0;0];
+Xa_last=[0;0;0;0;0;0;0;0];Xb_last=[0;0;0;0];Xc_last=[0;0;0;0];
+Xa_dual=[0;0;0;0;0;0;0;0];Xb_dual=[0;0;0;0];Xc_dual=[0;0;0;0];
+[Xa,Ploss,Volta,Qg]=program_a(lagrant_a,xigma,gama,Xa_last,Xa_dual);
+Ploss_data(Line_a)=Ploss(Line_a);Volta_data(Node_a)=Volta(Node_a);Qg_data(Node_a)=Qg(Node_a);
+[Xb,Ploss,Volta,Qg]=program_b(lagrant_b,xigma,gama,Xb_last,Xb_dual);
+Ploss_data(Line_b)=Ploss(Line_b);Volta_data(Node_b)=Volta(Node_b);Qg_data(Node_b)=Qg(Node_b);
+[Xc,Ploss,Volta,Qg]=program_c(lagrant_c,xigma,gama,Xc_last,Xc_dual);
+Ploss_data(Line_c)=Ploss(Line_c);Volta_data(Node_c)=Volta(Node_c);Qg_data(Node_c)=Qg(Node_c);
+Xa_last=[Xb;Xc];Xb_last=Xa(1:4);Xc_last=Xa(5:8);
+Xa_dual=Xa;Xb_dual=Xb;Xc_dual=Xc;
+xita=0.5;%阻尼系数
+lagrant_a=lagrant_a+xita*xigma*(Xa-[Xb;Xc]);lagrant_b=lagrant_b+xita*xigma*(Xa(1:4)-Xb);lagrant_c=lagrant_c+xita*xigma*(Xa(5:8)-Xc);
+figure(1)%目标函数
+plot(1,sum(Ploss_data),'r*')
+hold on
+figure(2)%对偶误差
+plot(1,norm(Xa-Xa_last,2)^2,'b*-');
+hold on
+%%%%迭代
+for k=1:100
+    xigma=3e-3;gama=4e-3;
+    [Xa,Ploss,Volta,Qg]=program_a(lagrant_a,xigma,gama,Xa_last,Xa_dual);
+    Ploss_data(Line_a)=Ploss(Line_a);Volta_data(Node_a)=Volta(Node_a);Qg_data(Node_a)=Qg(Node_a);
+    [Xb,Ploss,Volta,Qg]=program_b(lagrant_b,xigma,gama,Xb_last,Xb_dual);
+    Ploss_data(Line_b)=Ploss(Line_b);Volta_data(Node_b)=Volta(Node_b);Qg_data(Node_b)=Qg(Node_b);
+    [Xc,Ploss,Volta,Qg]=program_c(lagrant_c,xigma,gama,Xc_last,Xc_dual);
+    Ploss_data(Line_c)=Ploss(Line_c);Volta_data(Node_c)=Volta(Node_c);Qg_data(Node_c)=Qg(Node_c);
+    Xa_last=[Xb;Xc];Xb_last=Xa(1:4);Xc_last=Xa(5:8);
+    Xa_dual=Xa;Xb_dual=Xb;Xc_dual=Xc;
+    xita=0.5;%阻尼系数
+    lagrant_a=lagrant_a+xita*xigma*(Xa-[Xb;Xc]);lagrant_b=lagrant_b+xita*xigma*(Xa(1:4)-Xb);lagrant_c=lagrant_c+xita*xigma*(Xa(5:8)-Xc);
+    lagrant_a=lagrant_a+xigma*(Xa-Xa_last);lagrant_b=lagrant_a(1:4);lagrant_c=lagrant_a(5:8);
+    figure(1)
+    plot(k+1,sum(Ploss_data),'r*');
+    figure(2)
+    plot(k+1,norm(Xa-Xa_last,2)^2,'b*-');
+end
+Ploss_total=sum(Ploss_data)
+gap=norm(Xa-Xa_last,2)^2
